@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Chrono Maison</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chrono">
+<meta name="theme-color" content="#F1F3EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1310" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout : une colonne façon feuille de chrono de stade — liste des épreuves, puis plein écran pour la course en cours */
+:root{
+  --bg:#F1F3EF; --surface:#FFFFFF; --fg:#16201B; --muted:#5E6B64; --line:#DCE1DC;
+  --accent:#0E7A5A; --accent-ink:#FFFFFF; --gold:#B8860B; --gold-soft:#F6ECCF;
+  --over:#C0392B; --over-soft:#F7DEDA;
+  --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-ui:"Figtree",-apple-system,"Helvetica Neue",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0D1310; --surface:#151D19; --fg:#E7ECE9; --muted:#8E9B94; --line:#25302A;
+  --accent:#38CC98; --accent-ink:#06130D; --gold:#F0C049; --gold-soft:#2D2614;
+  --over:#FF7A66; --over-soft:#331915; color-scheme:dark;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--f-ui);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-user-select:none;user-select:none;overscroll-behavior:none}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.wrap{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+/* ---- Liste ---- */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:22px 14px}
+.brand small{display:block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.brand h1{margin:2px 0 0;font:700 40px/1 var(--f-num);letter-spacing:.01em;text-transform:uppercase}
+.iconbtn{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line)}
+.task{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:16px 4px;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.task:active{background:var(--surface)}
+.task .name{font-weight:600;font-size:17px;min-width:0}
+.task .meta{font-size:13px;color:var(--muted);margin-top:2px}
+.task .rec{text-align:right}
+.task .rec .t{font:600 28px/1 var(--f-num);font-variant-numeric:tabular-nums}
+.task .rec .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.task .rec .none{font-size:13px;color:var(--muted)}
+.task.live{background:var(--surface);border-left:3px solid var(--accent);padding-left:10px}
+.task.live .l{color:var(--accent)}
+.task .del{display:none}
+.editing .task{grid-template-columns:auto 1fr auto}
+.editing .task .del{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--over-soft);color:var(--over);font-weight:700}
+.add{display:flex;gap:8px;padding-block:16px}
+.add input{flex:1;min-width:0;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 14px;font:16px var(--f-ui)}
+.add button{height:48px;padding:0 18px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.foot{margin-top:auto;padding-block:20px 12px;font-size:13px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.foot button{text-decoration:underline;text-underline-offset:3px;color:var(--muted);padding:0}
+.empty{padding:28px 4px;color:var(--muted)}
+
+/* ---- Chrono ---- */
+.run{flex:1;display:flex;flex-direction:column;padding-block:12px 18px;gap:18px}
+.run .bar{display:flex;justify-content:space-between;align-items:center}
+.run h2{margin:0;font-size:22px;font-weight:700;text-wrap:balance}
+.clock{font:700 clamp(84px,27vw,150px)/.9 var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em;text-align:center;margin-top:4vh}
+.clock .ds{font-size:.45em;color:var(--muted);font-weight:600}
+.clock.paused{opacity:.45}
+.target{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--muted)}
+.target b{font:600 22px var(--f-num);color:var(--gold);font-variant-numeric:tabular-nums}
+.delta{text-align:center;font:600 26px var(--f-num);font-variant-numeric:tabular-nums;min-height:32px}
+.delta.ahead{color:var(--accent)} .delta.behind{color:var(--over)}
+.track{position:relative;height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.track i{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:7px}
+.track.over i{background:var(--over)}
+.track .ghost{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--gold);right:0}
+.controls{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big{height:72px;border-radius:20px;font-size:20px;font-weight:700}
+.go{background:var(--accent);color:var(--accent-ink);grid-column:1/-1}
+.stop{background:var(--fg);color:var(--bg)}
+.ghostbtn{border:1px solid var(--line);color:var(--fg)}
+.back{color:var(--muted);font-weight:600;font-size:15px;padding:8px 0}
+
+/* ---- Résultat ---- */
+.result{text-align:center}
+.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.badge.rec{background:var(--gold-soft);color:var(--gold)}
+.badge.no{background:var(--line);color:var(--muted)}
+.result .clock{margin-top:2vh}
+.result p{margin:0;color:var(--muted)}
+.history{display:flex;flex-direction:column;border-top:1px solid var(--line);text-align:left}
+.history div{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+.history div b{font:600 18px var(--f-num);color:var(--fg);font-variant-numeric:tabular-nums}
+.history .best b{color:var(--gold)}
+.history h3{margin:0 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* ---- Feuille ---- */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;z-index:20}
+.sheet .card{background:var(--bg);width:100%;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0;
+  padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:12px;max-height:90%;overflow:auto}
+.sheet h3{margin:0;font-size:18px}
+.sheet p{margin:0;font-size:14px;color:var(--muted)}
+.sheet input,.sheet textarea{width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:12px 14px;font:15px var(--f-ui);-webkit-user-select:text;user-select:text}
+.sheet textarea{height:120px;font:12px/1.4 ui-monospace,Menlo,monospace}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{flex:1;min-width:120px;height:48px;border-radius:12px;font-weight:700;border:1px solid var(--line)}
+.row .primary{background:var(--accent);color:var(--accent-ink);border:0}
+.row .danger{color:var(--over);border-color:var(--over-soft);background:var(--over-soft)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:30}
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+.badge.rec{animation:pop .5s ease-out}
+@media (prefers-reduced-motion:reduce){.badge.rec{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- LISTE -->
+<section id="vList">
+  <header class="top">
+    <div class="brand"><small id="today"></small><h1>Chrono Maison</h1></div>
+    <button class="iconbtn" id="btnEdit">Modifier</button>
+  </header>
+  <div class="list" id="list"></div>
+  <form class="add" id="addForm" hidden>
+    <input id="addInput" placeholder="Nouvelle tâche…" maxlength="60" autocomplete="off">
+    <button type="submit">Ajouter</button>
+  </form>
+  <div class="foot">
+    <button id="btnBackup">Sauvegarde</button>
+    <span id="stats"></span>
+  </div>
+</section>
+
+<!-- CHRONO -->
+<section id="vRun" class="run" hidden>
+  <div class="bar"><button class="back" id="btnBack">‹ Tâches</button></div>
+  <h2 id="runName"></h2>
+  <div class="clock" id="clock">0:00<span class="ds">.0</span></div>
+  <div class="delta" id="delta"></div>
+  <div id="targetBox">
+    <div class="target"><span>Record à battre</span><b id="target">—</b></div>
+    <div class="track" id="track" style="margin-top:10px"><i id="fill"></i></div>
+  </div>
+  <div class="controls" id="controls"></div>
+</section>
+
+<!-- RÉSULTAT -->
+<section id="vResult" class="run result" hidden>
+  <div class="bar"><span></span></div>
+  <h2 id="resName"></h2>
+  <div><span class="badge" id="resBadge"></span></div>
+  <div class="clock" id="resClock"></div>
+  <p id="resMsg"></p>
+  <div class="history" id="resHist"></div>
+  <div class="controls">
+    <button class="big ghostbtn" id="btnDiscard">Ne pas compter</button>
+    <button class="big stop" id="btnSave">Enregistrer</button>
+  </div>
+</section>
+</div>
+
+<!-- Feuille édition tâche -->
+<div class="sheet" id="sheetTask" hidden>
+  <div class="card">
+    <h3>Modifier la tâche</h3>
+    <input id="editName" maxlength="60">
+    <p>Lien direct (pour un raccourci iPhone qui lance le chrono de cette tâche) :</p>
+    <input id="editLink" readonly>
+    <div class="row"><button id="btnCopyLink">Copier le lien</button><button class="primary" id="btnRename">Enregistrer</button></div>
+    <div class="row"><button class="danger" id="btnResetRec">Effacer le record</button><button class="danger" id="btnDelete">Supprimer</button></div>
+    <div class="row" id="confirmRow" hidden><button class="danger" id="btnConfirm">Confirmer</button><button id="btnCancelConfirm">Annuler</button></div>
+    <div class="row"><button id="btnCloseTask">Fermer</button></div>
+  </div>
+</div>
+
+<!-- Feuille sauvegarde -->
+<div class="sheet" id="sheetBackup" hidden>
+  <div class="card">
+    <h3>Sauvegarde</h3>
+    <p>Copie ce texte dans tes Notes pour garder tes records. Pour restaurer, colle-le ici puis « Importer ».</p>
+    <textarea id="backupText"></textarea>
+    <div class="row"><button id="btnCopyBackup">Copier</button><button class="primary" id="btnImport">Importer</button></div>
+    <div class="row"><button id="btnCloseBackup">Fermer</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const KEY = 'chrono-maison-v1';
+const DEFAULT = ['Nourrir Rico','Changer le terrarium de Rico','Changer les draps','Nettoyer la chambre','Ranger la chambre','Se préparer à dormir'];
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,8);
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+
+let S;
+function load(){
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e){ S = null; }
+  if(!S || !Array.isArray(S.tasks)) S = { tasks: DEFAULT.map(n => ({id:uid(), name:n, best:null, runs:[]})), run:null };
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+function fmt(ms, tenths){
+  ms = Math.max(0, ms);
+  const t = Math.floor(ms/100), d = t%10, s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), ss = s%60;
+  const p = n => String(n).padStart(2,'0');
+  const main = h ? `${h}:${p(m)}:${p(ss)}` : `${m}:${p(ss)}`;
+  return tenths ? [main, '.'+d] : main;
+}
+const task = id => S.tasks.find(t => t.id === id);
+const elapsed = r => r.acc + (r.paused ? 0 : Date.now() - r.start);
+const ago = ts => {
+  const d = Math.floor((Date.now()-ts)/86400000);
+  if(d<=0) return "aujourd'hui"; if(d===1) return 'hier'; if(d<7) return `il y a ${d} j`;
+  return new Date(ts).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+};
+
+let editing = false, editId = null, pending = null, confirmAction = null, raf = 0, wake = null;
+
+function show(v){ ['vList','vRun','vResult'].forEach(x => $(x).hidden = x !== v); cancelAnimationFrame(raf);
+  if(v==='vRun') tick(); if(v!=='vRun') releaseWake(); }
+
+/* ---------- Liste ---------- */
+function renderList(){
+  $('today').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  $('btnEdit').textContent = editing ? 'Terminé' : 'Modifier';
+  $('addForm').hidden = !editing;
+  const L = $('list'); L.className = 'list' + (editing ? ' editing' : ''); L.innerHTML = '';
+  if(!S.tasks.length){ L.innerHTML = '<div class="empty">Aucune tâche. Touche « Modifier » pour en ajouter.</div>'; }
+  S.tasks.forEach(t => {
+    const live = S.run && S.run.taskId === t.id;
+    const b = document.createElement('button'); b.className = 'task' + (live ? ' live' : '');
+    const last = t.runs.length ? t.runs[t.runs.length-1] : null;
+    const meta = live ? 'Chrono en cours' : last ? `Dernière fois ${ago(last.d)} · ${fmt(last.ms)} · ${t.runs.length}×` : 'Jamais chronométrée';
+    b.innerHTML = `<span class="del" aria-hidden="true">–</span><div style="min-width:0"><div class="name"></div><div class="meta"></div></div>
+      <div class="rec">${live ? `<div class="l">En cours</div><div class="t num" data-live>${fmt(elapsed(S.run))}</div>` :
+        t.best != null ? `<div class="l">Record</div><div class="t num">${fmt(t.best)}</div>` : '<div class="none">—</div>'}</div>`;
+    b.querySelector('.name').textContent = t.name; b.querySelector('.meta').textContent = meta;
+    b.onclick = () => editing ? openEdit(t.id) : openTask(t.id);
+    L.appendChild(b);
+  });
+  const total = S.tasks.reduce((a,t) => a + t.runs.length, 0);
+  $('stats').textContent = total ? `${total} chronos enregistrés` : '';
+  if(S.run) liveListTick();
+}
+function liveListTick(){
+  const el = document.querySelector('[data-live]');
+  if(el && !$('vList').hidden && S.run){ el.textContent = fmt(elapsed(S.run)); setTimeout(liveListTick, 500); }
+}
+
+$('btnEdit').onclick = () => { editing = !editing; renderList(); };
+$('addForm').onsubmit = e => { e.preventDefault(); const n = $('addInput').value.trim(); if(!n) return;
+  S.tasks.push({id:uid(), name:n, best:null, runs:[]}); $('addInput').value=''; save(); renderList(); };
+
+/* ---------- Chrono ---------- */
+function openTask(id){
+  if(S.run && S.run.taskId !== id){ toast('Un autre chrono tourne déjà'); openTask(S.run.taskId); return; }
+  current = id; renderRun(); show('vRun');
+}
+let current = null;
+function renderRun(){
+  const t = task(current); if(!t){ show('vList'); renderList(); return; }
+  $('runName').textContent = t.name;
+  $('targetBox').hidden = t.best == null;
+  $('target').textContent = t.best != null ? fmt(t.best) : '—';
+  const C = $('controls'); C.innerHTML = '';
+  const r = S.run && S.run.taskId === t.id ? S.run : null;
+  const mk = (cls, txt, fn) => { const b = document.createElement('button'); b.className = 'big ' + cls; b.textContent = txt; b.onclick = fn; C.appendChild(b); };
+  if(!r){ mk('go', t.best == null ? 'Démarrer — premier record' : 'Démarrer', start); }
+  else {
+    mk('ghostbtn', r.paused ? 'Reprendre' : 'Pause', togglePause);
+    mk('stop', 'Terminé', stop);
+  }
+  $('clock').classList.toggle('paused', !!(r && r.paused));
+  paint();
+}
+function paint(){
+  const t = task(current); const r = S.run && S.run.taskId === current ? S.run : null;
+  const ms = r ? elapsed(r) : 0; const [m, d] = fmt(ms, true);
+  $('clock').innerHTML = `${m}<span class="ds">${d}</span>`;
+  const D = $('delta');
+  if(t && t.best != null && r){
+    const diff = t.best - ms; const pct = Math.min(1, ms / t.best);
+    $('fill').style.width = (pct*100) + '%'; $('track').classList.toggle('over', diff < 0);
+    D.className = 'delta ' + (diff >= 0 ? 'ahead' : 'behind');
+    D.textContent = diff >= 0 ? `${fmt(diff)} d'avance` : `+${fmt(-diff)} de retard`;
+  } else { $('fill').style.width = '0'; D.className = 'delta'; D.textContent = r ? '' : (t && t.best == null ? 'Pas encore de record' : ''); }
+}
+function tick(){ paint(); raf = requestAnimationFrame(tick); }
+function start(){ S.run = { taskId: current, start: Date.now(), acc: 0, paused: false }; save(); grabWake(); renderRun(); }
+function togglePause(){ const r = S.run; if(r.paused){ r.start = Date.now(); r.paused = false; grabWake(); } else { r.acc += Date.now() - r.start; r.paused = true; releaseWake(); } save(); renderRun(); }
+function stop(){
+  const r = S.run; const ms = elapsed(r); S.run = null; save(); releaseWake();
+  pending = { taskId: r.taskId, ms }; renderResult(); show('vResult');
+}
+$('btnBack').onclick = () => { show('vList'); renderList(); };
+
+/* ---------- Résultat ---------- */
+function renderResult(){
+  const t = task(pending.taskId); const ms = pending.ms; const prev = t.best;
+  const isRec = prev == null || ms < prev;
+  $('resName').textContent = t.name;
+  const B = $('resBadge'); B.className = 'badge ' + (isRec ? 'rec' : 'no');
+  B.textContent = isRec ? (prev == null ? 'Premier record' : 'Nouveau record') : 'Record tenu';
+  const [m, d] = fmt(ms, true); $('resClock').innerHTML = `${m}<span class="ds">${d}</span>`;
+  $('resMsg').textContent = prev == null ? 'C\'est le temps à battre la prochaine fois.'
+    : isRec ? `${fmt(prev - ms)} de mieux que ton ancien record (${fmt(prev)}).`
+    : `À ${fmt(ms - prev)} du record (${fmt(prev)}).`;
+  const H = $('resHist'); H.innerHTML = '';
+  const recent = t.runs.slice(-4).reverse();
+  if(recent.length){
+    H.innerHTML = '<h3>Précédents</h3>';
+    recent.forEach(x => { const row = document.createElement('div'); if(x.ms === prev) row.className = 'best';
+      row.innerHTML = `<span>${ago(x.d)}</span><b>${fmt(x.ms)}</b>`; H.appendChild(row); });
+  }
+}
+$('btnSave').onclick = () => {
+  const t = task(pending.taskId); t.runs.push({ d: Date.now(), ms: pending.ms });
+  if(t.runs.length > 60) t.runs = t.runs.slice(-60);
+  const rec = t.best == null || pending.ms < t.best; if(rec) t.best = pending.ms;
+  pending = null; save(); show('vList'); renderList(); toast(rec ? 'Record enregistré' : 'Temps enregistré');
+};
+$('btnDiscard').onclick = () => { pending = null; show('vList'); renderList(); toast('Chrono ignoré'); };
+
+/* ---------- Édition ---------- */
+function linkFor(t){ return location.origin + location.pathname + '?go=' + slug(t.name); }
+function openEdit(id){ editId = id; const t = task(id); $('editName').value = t.name; $('editLink').value = linkFor(t);
+  $('confirmRow').hidden = true; $('sheetTask').hidden = false; }
+$('btnCloseTask').onclick = () => $('sheetTask').hidden = true;
+$('btnRename').onclick = () => { const n = $('editName').value.trim(); if(n){ task(editId).name = n; save(); renderList(); } $('sheetTask').hidden = true; toast('Enregistré'); };
+$('btnCopyLink').onclick = () => copy($('editLink'));
+const ask = (fn, label) => { confirmAction = fn; $('btnConfirm').textContent = label; $('confirmRow').hidden = false; };
+$('btnDelete').onclick = () => ask(() => { S.tasks = S.tasks.filter(t => t.id !== editId); if(S.run && S.run.taskId === editId) S.run = null; save(); renderList(); $('sheetTask').hidden = true; toast('Tâche supprimée'); }, 'Supprimer définitivement');
+$('btnResetRec').onclick = () => ask(() => { const t = task(editId); t.best = null; t.runs = []; save(); renderList(); $('sheetTask').hidden = true; toast('Record effacé'); }, 'Effacer record et historique');
+$('btnConfirm').onclick = () => { confirmAction && confirmAction(); confirmAction = null; };
+$('btnCancelConfirm').onclick = () => { $('confirmRow').hidden = true; confirmAction = null; };
+
+/* ---------- Sauvegarde ---------- */
+$('btnBackup').onclick = () => { $('backupText').value = JSON.stringify({ tasks: S.tasks }); $('sheetBackup').hidden = false; };
+$('btnCloseBackup').onclick = () => $('sheetBackup').hidden = true;
+$('btnCopyBackup').onclick = () => copy($('backupText'));
+$('btnImport').onclick = () => {
+  try { const d = JSON.parse($('backupText').value); if(!Array.isArray(d.tasks)) throw 0;
+    S.tasks = d.tasks.map(t => ({ id: t.id || uid(), name: String(t.name || 'Tâche'), best: typeof t.best === 'number' ? t.best : null, runs: Array.isArray(t.runs) ? t.runs : [] }));
+    save(); renderList(); $('sheetBackup').hidden = true; toast('Sauvegarde importée');
+  } catch(e){ toast('Texte invalide : colle une sauvegarde complète'); }
+};
+
+/* ---------- Utilitaires ---------- */
+function copy(el){
+  const v = el.value;
+  (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Copié'))
+    .catch(() => { el.focus(); el.select(); toast('Sélectionné, copie-le à la main'); });
+}
+let tt; function toast(m){ const T = $('toast'); T.textContent = m; T.hidden = false; clearTimeout(tt); tt = setTimeout(() => T.hidden = true, 2200); }
+async function grabWake(){ try { if('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch(e){} }
+function releaseWake(){ try { wake && wake.release(); } catch(e){} wake = null; }
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){ if(S.run && !S.run.paused && !$('vRun').hidden) grabWake(); if(!$('vList').hidden) renderList(); }
+});
+
+/* ---------- Démarrage ---------- */
+load();
+const go = new URLSearchParams(location.search).get('go');
+if(go){
+  history.replaceState(null, '', location.pathname);
+  const t = S.tasks.find(x => slug(x.name) === go);
+  if(t){ openTask(t.id); if(!S.run) start(); }
+  else { renderList(); show('vList'); }
+} else if(S.run){ current = S.run.taskId; renderRun(); show('vRun'); }
+else { renderList(); show('vList'); }
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
